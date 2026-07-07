@@ -1,0 +1,155 @@
+cmake_minimum_required(VERSION 3.15)
+project(Zefir CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+enable_language(C)
+
+# ========== ОПЦІЇ ==========
+option(BUILD_DEMOS "Build demo applications" ON)
+option(BUILD_SHARED "Build shared library (.dll/.so)" ON)
+option(BUILD_STATIC "Build static library (.lib/.a)" ON)
+
+# ========== ЗАЛЕЖНОСТІ ==========
+add_library(glad STATIC thirdparty/glad/glad.c)
+target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty/glad ${CMAKE_SOURCE_DIR}/thirdparty)
+set_target_properties(glad PROPERTIES LINKER_LANGUAGE C)
+
+add_library(iota STATIC 
+    thirdparty/iota/win/iotaWindows.cpp 
+    thirdparty/iota/win/iotaWmi.cpp
+)
+target_include_directories(iota PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty/iota)
+
+if(WIN32)
+    add_library(dwmapi STATIC IMPORTED)
+    set_target_properties(dwmapi PROPERTIES IMPORTED_LOCATION C:/msys64/ucrt64/lib/libdwmapi.a)
+    target_link_libraries(iota PUBLIC dwmapi)
+endif()
+
+add_library(freetype STATIC IMPORTED)
+set_target_properties(freetype PROPERTIES
+    IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/thirdparty/freetype/libfreetype.a
+)
+target_include_directories(freetype INTERFACE ${CMAKE_SOURCE_DIR}/thirdparty/freetype/include)
+
+# ========== ZEFIR SOURCE FILES ==========
+set(ZEFIR_SOURCES
+    src/renderer.cpp
+    src/input.cpp
+    src/font.cpp
+    src/zefir.cpp
+    src/texture_loader.cpp
+    src/theme.cpp
+    src/widgets/button.cpp
+    src/widgets/panel.cpp
+    src/widgets/label.cpp
+    src/widgets/textbox.cpp
+    src/widgets/slider.cpp
+    src/widgets/checkbox.cpp
+    src/widgets/radio.cpp
+    src/widgets/combo.cpp
+    src/widgets/progress.cpp
+    src/widgets/tabview.cpp
+    src/widgets/scrollbar.cpp
+    src/widgets/texture_rect.cpp
+    src/widgets/viewport.cpp
+    src/widgets/menu.cpp
+    src/widgets/context_menu.cpp
+    src/widgets/tooltip.cpp
+    src/widgets/popup.cpp
+    src/widgets/window.cpp
+    src/widgets/layout.cpp
+)
+
+set(ZEFIR_INCLUDES
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/thirdparty
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/thirdparty/iota
+    ${CMAKE_SOURCE_DIR}/thirdparty/freetype/include
+)
+
+set(ZEFIR_LIBS glad iota freetype)
+if(WIN32)
+    list(APPEND ZEFIR_LIBS opengl32 gdi32)
+endif()
+
+# ========== БІБЛІОТЕКИ ==========
+set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/zefir)
+
+# Статична бібліотека
+if(BUILD_STATIC)
+    add_library(zefir STATIC ${ZEFIR_SOURCES})
+    target_include_directories(zefir PUBLIC ${ZEFIR_INCLUDES})
+    target_link_libraries(zefir PUBLIC ${ZEFIR_LIBS})
+    set_target_properties(zefir PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+        OUTPUT_NAME zefir
+    )
+endif()
+
+# Динамічна бібліотека
+if(BUILD_SHARED)
+    # Якщо статична вже є, додаємо аліас
+    if(BUILD_STATIC)
+        add_library(zefir_shared SHARED ${ZEFIR_SOURCES})
+        target_include_directories(zefir_shared PUBLIC ${ZEFIR_INCLUDES})
+        target_link_libraries(zefir_shared PUBLIC ${ZEFIR_LIBS})
+        if(WIN32)
+            target_compile_definitions(zefir_shared PRIVATE ZEFIR_EXPORTS)
+        endif()
+        set_target_properties(zefir_shared PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+            RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+            ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+            OUTPUT_NAME zefir
+        )
+    else()
+        add_library(zefir SHARED ${ZEFIR_SOURCES})
+        target_include_directories(zefir PUBLIC ${ZEFIR_INCLUDES})
+        target_link_libraries(zefir PUBLIC ${ZEFIR_LIBS})
+        if(WIN32)
+            target_compile_definitions(zefir PRIVATE ZEFIR_EXPORTS)
+        endif()
+        set_target_properties(zefir PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+            RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+            ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+            OUTPUT_NAME zefir
+        )
+    endif()
+endif()
+
+# Копіюємо include
+file(MAKE_DIRECTORY ${OUTPUT_DIR}/include)
+add_custom_target(copy_headers ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/include ${OUTPUT_DIR}/include
+    DEPENDS ${ZEFIR_SOURCES}
+)
+
+if(BUILD_DEMOS)
+    set(DEMO_DIR ${CMAKE_BINARY_DIR}/demo)
+    file(MAKE_DIRECTORY ${DEMO_DIR})
+    
+    set(DEMOS
+        HelloWorld button form slider checkbox
+        settings login mixer todo color
+        mediaplayer calculator json_editor layout
+        dashboard windowmanager themes showcase
+    )
+    
+    foreach(DEMO_NAME ${DEMOS})
+        set(DEMO_SRC ${CMAKE_SOURCE_DIR}/demo/${DEMO_NAME}.cpp)
+        if(EXISTS ${DEMO_SRC})
+            add_executable(demo_${DEMO_NAME} ${DEMO_SRC})
+            target_link_libraries(demo_${DEMO_NAME} PRIVATE zefir ${ZEFIR_LIBS})
+            if(WIN32)
+                target_link_options(demo_${DEMO_NAME} PRIVATE -mconsole)
+            endif()
+            set_target_properties(demo_${DEMO_NAME} PROPERTIES
+                RUNTIME_OUTPUT_DIRECTORY ${DEMO_DIR}
+            )
+        endif()
+    endforeach()
+endif()
