@@ -375,3 +375,7 @@ zefir_theme_get_button_style(&theme, &bs);
 | `windowmanager` | 4 movable windows | Window, Button, Slider, Progress, Checkbox |
 | `themes` | Theme switcher | Button, Slider, Checkbox, TextBox, Panel |
 | `showcase` | All widgets | Menu, ContextMenu, Window, Button, Checkbox, Radio, ComboBox, Progress, Slider, TextBox, TabView |
+
+# Uses open-source libraries
+- [stb](https://github.com/nothings/stb)
+- [freetype](https://github.com/freetype/freetype) 
