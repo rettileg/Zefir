@@ -4,12 +4,10 @@ project(Zefir CXX)
 set(CMAKE_CXX_STANDARD 17)
 enable_language(C)
 
-# ========== ОПЦІЇ ==========
 option(BUILD_DEMOS "Build demo applications" ON)
 option(BUILD_SHARED "Build shared library (.dll/.so)" ON)
 option(BUILD_STATIC "Build static library (.lib/.a)" ON)
 
-# ========== ЗАЛЕЖНОСТІ ==========
 add_library(glad STATIC thirdparty/glad/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty/glad ${CMAKE_SOURCE_DIR}/thirdparty)
 set_target_properties(glad PROPERTIES LINKER_LANGUAGE C)
@@ -74,10 +72,8 @@ if(WIN32)
     list(APPEND ZEFIR_LIBS opengl32 gdi32)
 endif()
 
-# ========== БІБЛІОТЕКИ ==========
 set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/zefir)
 
-# Статична бібліотека
 if(BUILD_STATIC)
     add_library(zefir STATIC ${ZEFIR_SOURCES})
     target_include_directories(zefir PUBLIC ${ZEFIR_INCLUDES})
@@ -88,9 +84,7 @@ if(BUILD_STATIC)
     )
 endif()
 
-# Динамічна бібліотека
 if(BUILD_SHARED)
-    # Якщо статична вже є, додаємо аліас
     if(BUILD_STATIC)
         add_library(zefir_shared SHARED ${ZEFIR_SOURCES})
         target_include_directories(zefir_shared PUBLIC ${ZEFIR_INCLUDES})
@@ -120,7 +114,6 @@ if(BUILD_SHARED)
     endif()
 endif()
 
-# Копіюємо include
 file(MAKE_DIRECTORY ${OUTPUT_DIR}/include)
 add_custom_target(copy_headers ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
